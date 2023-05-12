@@ -52,7 +52,7 @@ class SyscallWrapper:
     """
     self.reset()
     logger = self._logger
-    logger.debug("cmd: {}".format(cmd))
+    logger.debug(f"cmd: {cmd}")
     self.last_command = cmd
 
     cmd_pid = subprocess.Popen(cmd)
@@ -69,7 +69,7 @@ class SyscallWrapper:
     """
     self.reset()
     logger = self._logger
-    logger.debug("cmd: {}".format(cmd))
+    logger.debug(f"cmd: {cmd}")
     self.last_command = cmd
 
     cmd_pid = subprocess.Popen(cmd, stdin=subprocess.PIPE,
@@ -91,7 +91,7 @@ class SyscallWrapper:
       return
 
     # try to extract error message from stderr
-    logger.debug("return code: {}".format(self.return_code))
+    logger.debug(f"return code: {self.return_code}")
     self.error_occured = True
     self.error_final = []
     while True:
@@ -126,18 +126,16 @@ class SyscallWrapper:
     """
     self.reset()
     logger = self._logger
-    logger.debug("cmd: {}".format(cmd))
+    logger.debug(f"cmd: {cmd}")
     self.last_command = cmd
 
     cmd_pid = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     while cmd_pid.poll() is None:
       try:
-        line = cmd_pid.stdout.readline().decode("utf-8", "replace").strip()
-        if line:
+        if line := cmd_pid.stdout.readline().decode("utf-8", "replace").strip():
           self.intermediate_result.append(line)
-          result = terminate(line, logger)
-          if result:
+          if result := terminate(line, logger):
             self.error_occured = False
             logger.debug("Found terminating condition... Result: %s", result)
             cmd_pid.kill()
@@ -287,7 +285,7 @@ class AdbWrapper:
       cmd.extend(["-a", action_name])
       if extra_string:
         cmd.extend(["--es", extra_string[0], extra_string[1]])
-    cmd.extend(["-n", "{}/{}".format(package_name, component_name)])
+    cmd.extend(["-n", f"{package_name}/{component_name}"])
     logger.debug("cmd: %s", cmd)
     sw = self.syscall_wrapper
     sw.call_returnable_command(cmd)

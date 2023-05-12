@@ -69,8 +69,7 @@ def parse_arguments():
                       action="count",
                       help="If specified, results will be classified using "
                            "old classification using ADB convention.")
-  args = parser.parse_args()
-  return args
+  return parser.parse_args()
 
 
 def set_up_logging(args):
@@ -108,15 +107,16 @@ def supported_platform(logger):
     True if this platform is supported.
   """
   # TODO(billy): Look into supporting Windows in the near future.
-  logger.debug("Current platform: {}".format(sys.platform))
-  if not (sys.platform == "linux" or sys.platform == "darwin"):
+  logger.debug(f"Current platform: {sys.platform}")
+  if sys.platform not in ["linux", "darwin"]:
     logger.error("Sorry, your OS is currently unsupported for this script.")
     return False
 
-  if not (sys.version_info.major == 3 and sys.version_info.minor >= 5):
+  if sys.version_info.major != 3 or sys.version_info.minor < 5:
     logger.error("This script requires Python 3.5 or higher!")
-    logger.error("You are using Python {}.{}.".format(sys.version_info.major,
-                                                      sys.version_info.minor))
+    logger.error(
+        f"You are using Python {sys.version_info.major}.{sys.version_info.minor}."
+    )
     return False
   return True
 
@@ -234,8 +234,7 @@ def adb_push_hubble(adb_wrapper, hubble_path):
   for location in target_locations:
     if not adb_wrapper.push(hubble_abs_path, location):
       continue
-    line = adb_wrapper.get_result()
-    if line:
+    if line := adb_wrapper.get_result():
       if "error" in line or "fail" in line:
         try_another = True
     if not try_another:
@@ -257,11 +256,11 @@ def install_hubble(adb_wrapper, args, logger):
   """
   hubble_abs_path = os.path.abspath(args.hubble)
   if not os.path.exists(hubble_abs_path):
-    logger.error("{} does not exist!".format(args.hubble))
+    logger.error(f"{args.hubble} does not exist!")
     return False
 
   if not os.path.isfile(hubble_abs_path):
-    logger.error("{} is not a file".format(args.hubble))
+    logger.error(f"{args.hubble} is not a file")
     return False
 
   # do the actual installation by calling adb install
@@ -271,7 +270,7 @@ def install_hubble(adb_wrapper, args, logger):
   # sometimes, the return code states that installation is successful, but
   # in actuality there may still be some other failure(s).
   for l in adb_wrapper.get_result():
-    logger.debug("installation result: {}".format(l))
+    logger.debug(f"installation result: {l}")
     if "fail" in l.lower():
       args.error_message = l.strip()
       return False
@@ -295,9 +294,9 @@ def terminate_logcat(buffer, logger):
   if HUBBLE_LOGCAT_TAG in buffer and HUBBLE_RESULT_STRING in buffer:
     logger.debug("Execution is done! Extracting result location...")
     comps = buffer.split()
-    logger.debug("comps: {}".format(comps))
+    logger.debug(f"comps: {comps}")
     results_dir = comps[-1]
-    logger.debug("results dir: {}".format(results_dir))
+    logger.debug(f"results dir: {results_dir}")
     return results_dir
   return None
 
@@ -330,23 +329,23 @@ def classify_directory_using_adb_format(adb_wrapper,
     to. <code>None</code> is returned if any failure is encountered along the
     way.
   """
-  target_dir_parent = os.path.join(results_dir, "{}-{}-{}".format(
-      device.product_name, device.model_name, device.device_name))
+  target_dir_parent = os.path.join(
+      results_dir,
+      f"{device.product_name}-{device.model_name}-{device.device_name}",
+  )
   if not os.path.exists(target_dir_parent):
-    logger.debug("{} does not exist yet. Creating...".format(target_dir_parent))
+    logger.debug(f"{target_dir_parent} does not exist yet. Creating...")
     os.makedirs(target_dir_parent)
 
   target_dir = ""
   for i in range(1000):
     target_dir = os.path.join(target_dir_parent, "{0:03d}".format(i))
-    logger.debug("Testing {} as target directory.".format(target_dir))
+    logger.debug(f"Testing {target_dir} as target directory.")
     if not os.path.exists(target_dir):
-      logger.debug("{} does not exist yet! Using it!".format(target_dir))
+      logger.debug(f"{target_dir} does not exist yet! Using it!")
       break
 
-  if adb_wrapper.pull(source, target_dir):
-    return target_dir
-  return None
+  return target_dir if adb_wrapper.pull(source, target_dir) else None
 
 
 def classify_directory_using_build_fingerprint(adb_wrapper,
@@ -373,7 +372,7 @@ def classify_directory_using_build_fingerprint(adb_wrapper,
   # need to grab the build.txt to a tmp location
   tmp_file = "/tmp/device_build.txt"
   adb_pull_failed = False
-  if not adb_wrapper.pull("{}/build.txt".format(source), tmp_file):
+  if not adb_wrapper.pull(f"{source}/build.txt", tmp_file):
     logger.error("Failed to pull build.txt from device results dir.")
     adb_pull_failed = True
 
@@ -418,15 +417,15 @@ def classify_directory_using_build_fingerprint(adb_wrapper,
   target_dir_parent = os.path.join(results_dir, build_fingerprint)
 
   if not os.path.exists(target_dir_parent):
-    logger.debug("{} does not exist yet. Creating...".format(target_dir_parent))
+    logger.debug(f"{target_dir_parent} does not exist yet. Creating...")
     os.makedirs(target_dir_parent)
 
   target_dir = ""
   for i in range(1000):
     target_dir = os.path.join(target_dir_parent, "{0:03d}".format(i))
-    logger.debug("Testing {} as target directory.".format(target_dir))
+    logger.debug(f"Testing {target_dir} as target directory.")
     if not os.path.exists(target_dir):
-      logger.debug("{} does not exist yet! Using it!".format(target_dir))
+      logger.debug(f"{target_dir} does not exist yet! Using it!")
       break
 
   if adb_pull_failed:
@@ -474,13 +473,13 @@ def extract_results(adb_wrapper, source, destination,
       results_dir = destination
 
   results_dir = os.path.abspath(results_dir)
-  logger.debug("results_dir: {}".format(results_dir))
+  logger.debug(f"results_dir: {results_dir}")
   if os.path.exists(results_dir):
     if not os.path.isdir(results_dir):
       logger.error("Supplied (--output) path is invalid.")
       return None
   else:
-    logger.debug("{} does not exist yet. Creating...".format(results_dir))
+    logger.debug(f"{results_dir} does not exist yet. Creating...")
     os.makedirs(results_dir, exist_ok=True)
 
   if use_old_classification:

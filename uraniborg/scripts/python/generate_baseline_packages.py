@@ -54,7 +54,7 @@ def main():
   logger = set_up_logging(logging.ERROR)
   if len(sys.argv) < 2:
     logger.error("Insufficient argument!")
-    print("USAGE: {} [directory]".format(sys.argv[0]))
+    print(f"USAGE: {sys.argv[0]} [directory]")
     sys.exit(1)
 
   directory = os.path.join(sys.argv[1])
@@ -78,12 +78,13 @@ def main():
   shared_uid_apps = hubble.get_shared_uid_packages()
 
   # Create JSON Object
-  data = {}
-  data["packagesAll"] = packages_all
-  data["packagesNoCode"] = packages_no_code
-  data["platformAppsAll"] = platform_signed_apps_all
-  data["platformAppsNoCode"] = platform_signed_no_code
-  data["packagesSharedUid"] = shared_uid_apps
+  data = {
+      "packagesAll": packages_all,
+      "packagesNoCode": packages_no_code,
+      "platformAppsAll": platform_signed_apps_all,
+      "platformAppsNoCode": platform_signed_no_code,
+      "packagesSharedUid": shared_uid_apps,
+  }
   json_data = json.dumps(data, indent=2)
   print(json_data)
 

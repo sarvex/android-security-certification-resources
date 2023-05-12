@@ -74,8 +74,7 @@ def parse_arguments():
                       action="store_true",
                       help="If specified, the calculation would include GMS "
                       "packages from risk calculation.")
-  args = parser.parse_args()
-  return args
+  return parser.parse_args()
 
 
 def set_up_logging(args):
@@ -118,16 +117,17 @@ def supported_platform(logger):
     True if this platform is supported.
   """
   # TODO(billy): Look into what is required to support Windows in the future.
-  logger.debug("Current platform: {}".format(sys.platform))
-  if not (sys.platform == "linux" or sys.platform == "darwin"):
+  logger.debug(f"Current platform: {sys.platform}")
+  if sys.platform not in ["linux", "darwin"]:
     logger.error("Sorry, your OS is currenly unsupported for this script.")
     return False
 
   # Do this check to prevent users running this on Python2
-  if not (sys.version_info.major == 3 and sys.version_info.minor >= 5):
+  if sys.version_info.major != 3 or sys.version_info.minor < 5:
     logger.error("This script requires Python 3.5 or higher!")
-    logger.error("You are using Python {}.{}.".format(sys.version_info.major,
-                                                      sys.version_info.minor))
+    logger.error(
+        f"You are using Python {sys.version_info.major}.{sys.version_info.minor}."
+    )
     return False
 
   return True
@@ -149,7 +149,6 @@ def compute_scores(logger, hubble, normalize=False, include_gms=False):
     A dict containing all the individual scores for every metric, depending on
     the inclusion or exclusion of GMS apps based on param include_gms.
   """
-  results = dict()
   ### PLATFORM SIGNATURE RISK ########
   platform_signature_risk_analyzer = RA.PlatformSignature.get_scorer(
             hubble.get_api_level(), logger)
@@ -157,8 +156,7 @@ def compute_scores(logger, hubble, normalize=False, include_gms=False):
       hubble, normalize)
   logger.info("Platform Signature Risk: %2.4f / %2.4f", platform_signature_risk,
               platform_signature_risk_analyzer.PHI)
-  results[KEY_PLATFORM] = platform_signature_risk
-
+  results = {KEY_PLATFORM: platform_signature_risk}
   logger.debug("include_gms: %s", include_gms)
   #### RISKY PRIVILEGED PERMISSIONS ##########
   if include_gms:
@@ -262,17 +260,12 @@ def main():
     logger.warning("Use the --include-gms option to see the scores with GMS")
 
   if args.csv:
-    device_info_str = "{},{}:{}:{},{},{},".format(hp.hardware["oem"],
-                                                  hp.hardware["brand"],
-                                                  hp.hardware["modelName"],
-                                                  hp.hardware["productName"],
-                                                  hp.build["apiLevel"],
-                                                  hp.build["fingerprint"])
+    device_info_str = f'{hp.hardware["oem"]},{hp.hardware["brand"]}:{hp.hardware["modelName"]}:{hp.hardware["productName"]},{hp.build["apiLevel"]},{hp.build["fingerprint"]},'
     scores_str = "{:2.2f},{:2.2f},{:2.2f},".format(scores[KEY_PLATFORM],
                                                    scores[KEY_RISKY_PERMS],
                                                    scores[KEY_CLEARTEXT])
     scores_str += "{:2.2f},".format(total_risk_score)
-    rating_str = "{},".format(interpret_device_score(total_risk_score))
+    rating_str = f"{interpret_device_score(total_risk_score)},"
     print(device_info_str + scores_str)
 
 

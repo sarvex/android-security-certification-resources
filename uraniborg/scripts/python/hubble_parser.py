@@ -63,10 +63,9 @@ class HubbleParser:
   def check_version(version_str):
     version_str_comps = version_str.split(".")
     expected_version_comps = HubbleParser.EXPECTED_VERSION.split(".")
-    for i in range(2):
-      if int(version_str_comps[i]) < int(expected_version_comps[i]):
-        return False
-    return True
+    return all(
+        int(version_str_comps[i]) >= int(expected_version_comps[i])
+        for i in range(2))
 
   def __init__(self, logger, normalize=False):
     self.packages = ""
@@ -158,7 +157,7 @@ class HubbleParser:
   def get_shared_uid_packages(self):
     if not self._shared_uid_packages:
       platform_signature = self.get_platform_signature()
-      self._shared_uid_packages = dict()
+      self._shared_uid_packages = {}
       for package in self.packages:
         if platform_signature in package["certIds"]:
           package_shared_uid = package["sharedUserId"]
@@ -182,37 +181,35 @@ class HubbleParser:
     return self._platform_signature
 
   def get_all_packages(self, get_codes_only):
-    result = []
-    for package in self.packages:
-      if not get_codes_only or package["hasCode"]:
-        result.append(package["name"])
-    return result
+    return [
+        package["name"] for package in self.packages
+        if not get_codes_only or package["hasCode"]
+    ]
 
   def get_platform_packages(self, get_codes_only):
-    result = []
     platform_signature = self.get_platform_signature()
-    for package in self.packages:
-      if platform_signature in package["certIds"]:
-        if not get_codes_only or package["hasCode"]:
-          result.append(package["name"])
-    return result
+    return [
+        package["name"] for package in self.packages
+        if platform_signature in package["certIds"] and (
+            not get_codes_only or package["hasCode"])
+    ]
 
   def print_all_packages(self, print_codes_only):
     for package in self.packages:
       if not print_codes_only or package["hasCode"]:
-        print("        \"{}\",".format(package["name"]))
+        print(f'        \"{package["name"]}\",')
 
   def print_platform_packages(self, print_codes_only):
     platform_signature = self.get_platform_signature()
     for package in self.packages:
-      if platform_signature in package["certIds"]:
-        if not print_codes_only or package["hasCode"]:
-          print("        \"{}\",".format(package["name"]))
+      if platform_signature in package["certIds"] and (not print_codes_only
+                                                       or package["hasCode"]):
+        print(f'        \"{package["name"]}\",')
 
   def print_nocode_packages(self):
     for package in self.packages:
       if not package["hasCode"]:
-        print("          \"{}\",".format(package["name"]))
+        print(f'          \"{package["name"]}\",')
 
   def read_in_json(self, path):
     logger = self.logger
@@ -227,9 +224,7 @@ class HubbleParser:
 
   def parse_json(self, path, item_type):
     item = self.read_in_json(path)
-    if not item:
-      return False
-    return item[item_type]
+    return False if not item else item[item_type]
 
   def parse_packages(self, packages_path):
     packages = self.parse_json(packages_path, "packages")

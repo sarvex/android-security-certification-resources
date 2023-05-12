@@ -88,9 +88,7 @@ class BaselinePackages:
     self.packages_shared_uid = in_json["packagesSharedUid"]
 
   def get_all_packages(self, no_code=False):
-    if no_code:
-      return self.packages_no_code
-    return self.packages_all
+    return self.packages_no_code if no_code else self.packages_all
 
   def get_platform_signed_packages(self, no_code=False):
     if no_code:
@@ -164,9 +162,7 @@ class GMS:
       return False
 
     package_signature = package["certIds"][0]
-    if package_signature == GMS.PACKAGES.get(package_name):
-      return True
-    return False
+    return package_signature == GMS.PACKAGES.get(package_name)
 
 
 class PackageWhitelists:
@@ -262,7 +258,7 @@ class PackageWhitelists:
       for prefix in PackageWhitelists.PREFIXES:
         truncated_package_name = ""
         if whitelisted_package.startswith(prefix):
-          truncated_package_name = "." + whitelisted_package[len(prefix):]
+          truncated_package_name = f".{whitelisted_package[len(prefix):]}"
 
           if package_name.endswith(truncated_package_name):
             return whitelisted_package

@@ -58,8 +58,7 @@ def parse_arguments():
                       help="the file to dump parsed permissions to")
   parser.add_argument("-D", "--debug", required=False, action="count",
                       help="If specified, debugging is turned on.")
-  args = parser.parse_args()
-  return args
+  return parser.parse_args()
 
 
 def set_up_logging(args):
@@ -87,21 +86,19 @@ def set_up_logging(args):
 
 
 def get_output_file(args, logger):
-  logger.debug("args.output = {}".format(args.output))
+  logger.debug(f"args.output = {args.output}")
   if not args.output or args.output == "stdout":
-    outfile = sys.stdout
+    return sys.stdout
   elif args.output == "stderr":
-    outfile = sys.stderr
+    return sys.stderr
   else:
-    outfile = open(args.output, "w")
-  return outfile
+    return open(args.output, "w")
 
 
 def parse_xml(args, logger):
   logger.debug("Parsing xml...")
   tree = ElementTree.parse(args.input)
-  root = tree.getroot()
-  return root
+  return tree.getroot()
 
 
 def parse_permissions(logger, xml_root):
@@ -116,18 +113,17 @@ def parse_permissions(logger, xml_root):
     the protection level as the value.
   """
   permissions = xml_root.findall(".//permission")
-  logger.info("There are {} permissions in this release.".format(
-      len(permissions)))
+  logger.info(f"There are {len(permissions)} permissions in this release.")
 
   result = {}
   for permission in permissions:
     permission_name = permission.get("{{{}}}name".format(NAMESPACE["android"]))
-    logger.debug("permission_name: {}".format(permission_name))
+    logger.debug(f"permission_name: {permission_name}")
     prot_level = permission.get("{{{}}}protectionLevel".format(
         NAMESPACE["android"]))
-    logger.debug("prot_level: {}".format(prot_level))
+    logger.debug(f"prot_level: {prot_level}")
 
-    if prot_level in result.keys():
+    if prot_level in result:
       curr_set = result[prot_level]
       curr_set.add(permission_name)
       result[prot_level] = curr_set
@@ -156,7 +152,7 @@ def main():
 
     for perm in permissions_dict[prot_level]:
       total_permissions += 1
-      ofile.write("{},{}\n".format(perm, prot_level))
+      ofile.write(f"{perm},{prot_level}\n")
 
   logger.info("There are %d exclusive protection levels in this release.",
               len(exclusive_prot_level))

@@ -163,9 +163,7 @@ class RiskAnalyzer(ABC):
     logger = self.logger
     numerator = self.compute_base_score(hubble, True)
     denominator = self.compute_base_score(hubble, False)
-    r = 0.0
-    if denominator:
-      r = numerator / denominator
+    r = numerator / denominator if denominator else 0.0
     logger.debug("r = %2.2f / %2.2f = %2.4f", numerator, denominator, r)
     return r * self.PHI
 
@@ -202,10 +200,10 @@ class PlatformSignature(RiskAnalyzer):
     elif api_level == 28:
       logger.debug("Returning PPlatformSignature")
       return PPlatformSignature(logger)
-    elif api_level == 27 or api_level == 26:
+    elif api_level in [27, 26]:
       logger.debug("Returning OPlatformSignature")
       return OPlatformSignature(logger)
-    elif api_level == 25 or api_level == 24:
+    elif api_level in [25, 24]:
       return NPlatformSignature(logger)
     else:
       raise Exception("API Level not handled!")
@@ -234,9 +232,7 @@ class PlatformSignature(RiskAnalyzer):
     baseline = BaselinePackages.get_instance(hubble.get_api_level())
     hubble.platform_apps = []
     hubble.system_uid_apps = []
-    update_apps = False
-    if not self.related_apps and normalize:
-      update_apps = True
+    update_apps = bool(not self.related_apps and normalize)
     for package in packages:
       package_name = package["name"]
 
@@ -347,10 +343,10 @@ class SystemUid(RiskAnalyzer):
     if api_level == 28:
       logger.debug("Return PSystemUid")
       return PSystemUid(logger)
-    elif api_level == 27 or api_level == 26:
+    elif api_level in [27, 26]:
       logger.debug("Returning OSystemUid")
       return OSystemUid(logger)
-    elif api_level == 25 or api_level == 24:
+    elif api_level in [25, 24]:
       return NSystemUid(logger)
     else:
       raise Exception("API Level not supported!")
@@ -531,9 +527,9 @@ class RiskyPermissions(RiskAnalyzer):
       return QRiskyPermissions(logger, google_discount)
     elif api_level == 28:
       return PRiskyPermissions(logger, google_discount)
-    elif api_level == 27 or api_level == 26:
+    elif api_level in [27, 26]:
       return ORiskyPermissions(logger, google_discount)
-    elif api_level == 25 or api_level == 24:
+    elif api_level in [25, 24]:
       return NRiskyPermissions(logger, google_discount)
     else:
       raise Exception("API Level not handled!")
@@ -556,11 +552,12 @@ class RiskyPermissions(RiskAnalyzer):
     Weights = RiskyPermissions.Weights
     permission_levels = [a for a in dir(Permissions) if a.startswith("RISK")]
 
-    for permission_level in permission_levels:
-      if permission_name in getattr(Permissions, permission_level):
-        return getattr(Weights, permission_level)
-
-    return 0
+    return next(
+        (getattr(Weights, permission_level)
+         for permission_level in permission_levels
+         if permission_name in getattr(Permissions, permission_level)),
+        0,
+    )
 
   def __init__(self, logger, google_discount):
     super().__init__()
@@ -589,11 +586,7 @@ class RiskyPermissions(RiskAnalyzer):
       A dict containing scores in various categories. Most of the rest of the
       scores are accrued within the 'generic' key.
     """
-    scores = dict()
-    scores["generic"] = 0
-    scores["location"] = 0
-    scores["sms"] = 0
-
+    scores = {"generic": 0, "location": 0, "sms": 0}
     for permission in permissions:
       if "LOCATION" in permission:
         scores["location"] = max(scores["location"],
@@ -619,9 +612,7 @@ class RiskyPermissions(RiskAnalyzer):
     baseline = BaselinePackages.get_instance(hubble.get_api_level())
 
     gms_packages = GMS.PACKAGES if self.google_discount else []
-    update_apps = False
-    if not self.related_apps and normalize:
-      update_apps = True
+    update_apps = bool(not self.related_apps and normalize)
     for package in packages:
       package_name = package["name"]
 
@@ -646,9 +637,8 @@ class RiskyPermissions(RiskAnalyzer):
                          package_name)
 
       if normalize:
-        fuzzy_matched_package = PackageWhitelists.package_name_fuzzy_match(
-            logger, package_name, baseline.get_all_packages())
-        if fuzzy_matched_package:
+        if fuzzy_matched_package := PackageWhitelists.package_name_fuzzy_match(
+            logger, package_name, baseline.get_all_packages()):
           # the ideal case would be to compute the diff of permission between
           # packages. But we'll use a simpler version by skipping for now in
           # this iteration.
@@ -773,9 +763,9 @@ class CleartextTraffic(RiskAnalyzer):
       return QCleartextTraffic(logger, google_discount)
     elif api_level == 28:
       return PCleartextTraffic(logger, google_discount)
-    elif api_level == 27 or api_level == 26:
+    elif api_level in [27, 26]:
       return OCleartextTraffic(logger, google_discount)
-    elif api_level == 25 or api_level == 24:
+    elif api_level in [25, 24]:
       return NCleartextTraffic(logger, google_discount)
     else:
       raise Exception("API Level not handled!")
@@ -801,16 +791,13 @@ class CleartextTraffic(RiskAnalyzer):
     baseline = BaselinePackages.get_instance(hubble.get_api_level())
     gms_packages = GMS.PACKAGES if self.google_discount else []
     total_score = 0
-    update_apps = False
-    if not self.related_apps and normalize:
-      update_apps = True
+    update_apps = bool(not self.related_apps and normalize)
     for package in packages:
       package_name = package["name"]
 
       if normalize:
-        fuzzy_matched_package = PackageWhitelists.package_name_fuzzy_match(
-            logger, package_name, baseline.get_all_packages())
-        if fuzzy_matched_package:
+        if fuzzy_matched_package := PackageWhitelists.package_name_fuzzy_match(
+            logger, package_name, baseline.get_all_packages()):
           logger.debug("^%s skipped - fuzzy matched to GSI package %s",
                        package_name, fuzzy_matched_package)
           continue
@@ -928,9 +915,8 @@ class HostileDownloader(RiskAnalyzer):
         continue
 
       if normalize:
-        fuzzy_matched_package = PackageWhitelists.package_name_fuzzy_match(
-            logger, package_name, baseline.get_all_packages())
-        if fuzzy_matched_package:
+        if fuzzy_matched_package := PackageWhitelists.package_name_fuzzy_match(
+            logger, package_name, baseline.get_all_packages()):
           logger.debug("^%s skipping - fuzzy matched to GSI package %s",
                        package_name, fuzzy_matched_package)
           continue
